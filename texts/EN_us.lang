@@ -1,0 +1,3 @@
+commands.invsee=See the inventory of the players
+inventory.name=Inventory of 
+command.error.selfTarget=You can't see your self inventory
