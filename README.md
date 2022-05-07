@@ -11,6 +11,8 @@ Invsee is a BDSX Plugin that allows you to view other players inventory
 
 - realtime update
 
+- Enderchest Support
+
 - Multi-language Plugin
 
 ## Configuring
