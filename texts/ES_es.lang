@@ -1,2 +1,5 @@
 commands.invsee=Mira el inventario de los jugadores
-inventory.name=Inventario de 
+commands.enderinvsee=Mira el cofre de ender de los jugadores
+inventory.name=Inventario de
+inventory.ender=Cofre de ender de
+command.error.selfTarget=No puedes ver tu propio inventario

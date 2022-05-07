@@ -1,3 +1,5 @@
 commands.invsee=See the inventory of the players
-inventory.name=Inventory of 
+commands.enderinvsee=See the ender chest of the players
+inventory.name=Inventory of
+inventory.ender=Ender Chest of
 command.error.selfTarget=You can't see your self inventory

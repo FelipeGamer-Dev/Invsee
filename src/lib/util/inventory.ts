@@ -7,7 +7,7 @@ export function setInventory(container: FakeDoubleContainer, player: ServerPlaye
   const inventory: ItemStack[] = player.getInventory().getSlots().toArray().reverse();
   const inventorySlots: number[] = getInventorySlots();
   const hotbar: ItemStack[] = inventory.slice(27, 36).reverse();
-  
+
   for (let i = 0; i < armor.length; i++) {
     if (!armor[i]) continue;
     container.setItem(i * 9, armor[i].clone());
@@ -19,10 +19,10 @@ export function setInventory(container: FakeDoubleContainer, player: ServerPlaye
       if (hotbar[i - 27].amount == 0) {
         container.setItem(inventorySlots[i], ItemStack.EMPTY_ITEM);
       }
-      container.setItem(inventorySlots[i], hotbar[i - 27].clone());
+      container.setItem(inventorySlots[i], hotbar[i - 27]);
       continue;
     }
-    container.setItem(inventorySlots[i], inventory[i].clone());
+    container.setItem(inventorySlots[i], inventory[i]);
   }
   if (player.getOffhandSlot()) container.setItem(28, player.getOffhandSlot().clone());
   addBarriers(container);
@@ -58,3 +58,4 @@ function addBarriers(container: FakeDoubleContainer): void {
 function containerConditional(i: number): number {
   return (i >= 34 && i < 45) ? 11 : (((i + 1) % 9) !== 0) ? 1 : 3;
 }
+
