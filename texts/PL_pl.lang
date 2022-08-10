@@ -1,0 +1,5 @@
+commands.invsee=Pozwala zobaczyć ekwipunek gracza
+commands.enderinvsee=Pozwala zobaczyć skrzynie kresu gracza
+inventory.name=Ekwipunek gracza
+inventory.ender=Skrzynkia kresu gracza
+command.error.selfTarget=Nie możesz użyć tej komendy na sobie
