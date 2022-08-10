@@ -19,7 +19,7 @@ const inventories: Map<NetworkIdentifier, invsee> = new Map<NetworkIdentifier, i
 
 events.serverOpen.on(() => {
   const configuration: Configuration = new Configuration(join(__dirname, "..", "configuration.json"));
-  console.log(`InvSee v1.0\nBy: FelipeGamerDev\n\nLanguage: ${configuration.language}`);
+  console.log(`InvSee v2\nBy: FelipeGamerDev\n\nLanguage: ${configuration.language}`);
   const language: Language = new Language(configuration.language);
 
   command.register("invsee", language.translate("commands.invsee")!, CommandPermissionLevel.Operator).overload((param, origin) => {
