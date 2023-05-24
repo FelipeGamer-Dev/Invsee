@@ -17,39 +17,42 @@ import { Utils } from "../utils/Utils";
 import { CANCEL } from "bdsx/common";
 import { StringTag } from "bdsx/bds/nbt";
 import { ContainerInventory, ContainerSize } from "../ContainerMenu";
+import { NativeType } from "bdsx/nativetype";
 
 type TransactionCallback = (action: ItemStackRequestActionTransferBase) => void | CANCEL;
 type ContainerCloseCallback = () => void;
 
 export class FakeContainer {
-    private netId: NetworkIdentifier;
-    private containerId: number;
-    private position: BlockPos;
-    private block: Block;
-    private containerType: ContainerType;
-    private containerSize: ContainerSize;
-    private inventory: ContainerInventory;
-    private customName: string;
+    protected readonly netId: NetworkIdentifier;
+    private readonly containerId: number;
+    protected position: BlockPos;
+    private readonly block: Block;
+    private readonly containerType: ContainerType;
+    private readonly containerSize: ContainerSize;
+    protected inventory: ContainerInventory;
+    protected customName: string;
+    protected readonly destructItems: boolean;
 
     private transactionCallback: TransactionCallback;
     private containerCloseCallback: ContainerCloseCallback;
 
-    constructor(block: Block, containerType: ContainerType, containerSize: number, player: ServerPlayer, inventory?: ContainerInventory) {
+    constructor(block: Block, containerType: ContainerType, containerSize: number, player: ServerPlayer, destructItems: boolean = true, inventory: ContainerInventory = {}) {
         this.netId = player.getNetworkIdentifier();
         this.containerId = player.nextContainerCounter();
         this.block = block;
         this.containerType = containerType;
         this.containerSize = containerSize;
-        this.inventory = inventory || {};
+        this.destructItems = destructItems;
+        this.inventory = inventory;
     }
 
     /**
      * Places the container client-side.
      * This is required in Bedrock edition.
      */
-    private placeContainer(): void {
+    protected placeContainer(pos: BlockPos): void {
         const pk = UpdateBlockPacket.allocate();
-        pk.blockPos.construct(this.position);
+        pk.blockPos.construct(pos);
         pk.dataLayerId = 0;
         pk.flags = UpdateBlockPacket.Flags.Network;
         pk.blockRuntimeId = this.block.getRuntimeId();
@@ -60,7 +63,7 @@ export class FakeContainer {
     /**
      * Opens the container client-side.
      */
-    private openContainer(): void {
+    protected openContainer(): void {
         const pk = ContainerOpenPacket.allocate();
         pk.containerId = this.containerId;
         pk.type = this.containerType;
@@ -88,7 +91,7 @@ export class FakeContainer {
     public sendToPlayer(): void {
         PlayerManager.setContainer(this.netId, this);
         this.position = Utils.getAbovePosition(this.netId);
-        this.placeContainer();
+        this.placeContainer(this.position);
         if(this.customName) this.sendCustomName();
         bedrockServer.serverInstance.nextTick().then(() => {
             this.openContainer();
@@ -101,14 +104,16 @@ export class FakeContainer {
      *
      * @param slot - The slot to set the item in.
      * @param item - The item to set.
+     * @param destructOld - Whether to destroy the old item.
+     *
      *
      * @remarks This will update the item client-side if needed to.
      */
-    public setItem(slot: number, item: ItemStack): void {
+    public setItem(slot: number, item: ItemStack, destructOld: boolean = this.destructItems): void {
         if(slot < 0 || slot >= this.containerSize) {
             throw new Error(`Slot ${slot} is out of range (container has ${this.containerSize} slots)`);
         }
-        if (this.inventory[slot] !== undefined && !this.inventory[slot]?.sameItem(item)) this.inventory[slot].destruct();
+        if (this.inventory[slot] !== undefined && !this.inventory[slot]?.sameItem(item) && destructOld) this.inventory[slot].destruct();
         this.inventory[slot] = item;
         // If the container is not sent yet, no need to update the slot.
         if(PlayerManager.hasContainer(this.netId)) {
@@ -120,10 +125,11 @@ export class FakeContainer {
      * Sets the container's inventory contents.
      *
      * @param contents - The contents to set.
+     * @param destructOld - Whether to destroy the old items.
      */
-    public setContents(contents: ContainerInventory): void {
+    public setContents(contents: ContainerInventory, destructOld: boolean = this.destructItems): void {
         for(const [slot, item] of Object.entries(contents)) {
-            this.setItem(+slot, item);
+            this.setItem(+slot, item, destructOld);
         }
     }
 
@@ -152,7 +158,8 @@ export class FakeContainer {
         pk.containerId = this.containerId;
         pk.slot = slot;
         const descriptor = NetworkItemStackDescriptor.constructWith(item);
-        pk.descriptor.construct(descriptor);
+        pk.descriptor.destruct();
+        pk.descriptor[NativeType.ctor_move](descriptor);
         pk.sendTo(this.netId);
         descriptor.destruct();
         pk.dispose();
@@ -161,7 +168,7 @@ export class FakeContainer {
     /**
      * Updates the container's inventory client-side.
      */
-    private updateAllItems(): void {
+    protected updateAllItems(): void {
         for (let [slot, item] of Object.entries(this.inventory)) {
             this.updateItem(+slot, item);
         }
@@ -190,12 +197,12 @@ export class FakeContainer {
      * Clears a container's slot,
      * updating it client-side if needed.
      */
-    public clearItem(slot: number): void {
+    public clearItem(slot: number, destructItem: boolean = this.destructItems): void {
         if(slot < 0 || slot >= this.containerSize) {
             throw new Error(`Slot ${slot} is out of range (container has ${this.containerSize} slots)`);
         }
         if(this.inventory[slot]) {
-            this.inventory[slot].destruct();
+            if(destructItem) this.inventory[slot].destruct();
             delete this.inventory[slot];
             // If the container is not sent yet, no need to update the slot.
             if(PlayerManager.hasContainer(this.netId)) {
@@ -208,9 +215,9 @@ export class FakeContainer {
      * Clears the container's contents,
      * updating it client-side if needed.
      */
-    public clearContents(): void {
+    public clearContents(destructItems: boolean = this.destructItems): void {
         for(const [slot, item] of Object.entries(this.inventory)) {
-            this.clearItem(+slot);
+            this.clearItem(+slot, destructItems);
         }
     }
 
@@ -240,7 +247,7 @@ export class FakeContainer {
 
     /**
      * Callback is triggered when the player interacts with an item,
-     * in the container, or in it's inventory.
+     * in the container, or in its inventory.
      */
     public onTransaction(callback: TransactionCallback): void {
         this.transactionCallback = callback;
@@ -286,23 +293,35 @@ export class FakeContainer {
      * Destroys the container client-side,
      * and replaces it with the original block.
      */
-    private destroyContainer(): void {
+    protected destroyContainer(pos: BlockPos): void {
         const pk = UpdateBlockPacket.allocate();
-        pk.blockPos.construct(this.position);
+        pk.blockPos.construct(pos);
         pk.dataLayerId = 0;
         pk.flags = UpdateBlockPacket.Flags.Network;
-        pk.blockRuntimeId = Utils.getBlockAtPosition(this.netId, this.position).getRuntimeId();
+        pk.blockRuntimeId = Utils.getBlockAtPosition(this.netId, pos).getRuntimeId();
         pk.sendTo(this.netId);
         pk.dispose();
     }
 
     /**
-     * Destroys the container, and destructs all the ItemStack instances.
+     * Destructs all the ItemStack instances of the container's inventory.
+     *
+     * @remarks This is called automatically if `destructItems` is set to true.
      */
-    public destruct(): void {
-        this.destroyContainer();
+    public destructAllItems(): void {
         for(const item of Object.values(this.inventory)) {
             item.destruct();
+        }
+        this.inventory = {};
+    }
+
+    /**
+     * Destroys the container, and destructs all the ItemStack instances, if needed.
+     */
+    public destruct(): void {
+        this.destroyContainer(this.position);
+        if(this.destructItems) {
+            this.destructAllItems();
         }
         PlayerManager.removeContainer(this.netId);
     }

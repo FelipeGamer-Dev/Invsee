@@ -14,9 +14,13 @@ import { ChestContainer } from "./containers/ChestContainer";
 import { ServerPlayer } from "bdsx/bds/player";
 import { PlayerManager } from "./PlayerManager";
 import { PacketListener } from "./listener/PacketListener";
+import { HopperContainer } from "./containers/HopperContainer";
+import { DispenserContainer } from "./containers/DispenserContainer";
+import { DropperContainer } from "./containers/DropperContainer";
 import { ItemStack } from "bdsx/bds/inventory";
 import { DoubleChestContainer } from "./containers/DoubleChestContainer";
-import { FakeDoubleContainer } from "./containers/FakeDoubleContainer";
+import { TrappedChestContainer } from "./containers/TrappedChestContainer";
+import { DoubleTrappedChestContainer } from "./containers/DoubleTrappedChestContainer";
 
 PacketListener.loadListeners();
 
@@ -26,7 +30,11 @@ PacketListener.loadListeners();
 export enum FakeContainerType {
     Chest,
     TrappedChest,
-    DoubleChest
+    DoubleChest,
+    DoubleTrappedChest,
+    Hopper,
+    Dropper,
+    Dispenser,
 }
 
 /**
@@ -34,10 +42,13 @@ export enum FakeContainerType {
  */
 export enum ContainerSize {
     Chest = 27,
-    DoubleChest = 54
+    DoubleChest = 54,
+    Hopper = 5,
+    Dropper = 9,
+    Dispenser = 9,
 }
 
-export type ContainerInventory = Record<number, ItemStack>;;
+export type ContainerInventory = Record<number, ItemStack>;
 
 export namespace ContainerMenu {
     /**
@@ -45,14 +56,26 @@ export namespace ContainerMenu {
      *
      * @param player - The player to create the container for.
      * @param container - The container type to create.
+     * @param destructItems - Whether the ItemStacks should be automatically destructed.
+     * @param inventory - The inventory of the container.
      */
-    export function create(player: ServerPlayer, container: FakeContainerType, inventory?: ContainerInventory): FakeContainer | FakeDoubleContainer {
+    export function create(player: ServerPlayer, container: FakeContainerType, destructItems?: boolean, inventory?: ContainerInventory): FakeContainer {
         if(!PlayerManager.hasContainer(player.getNetworkIdentifier())) {
             switch(container) {
                 case FakeContainerType.Chest:
-                    return new ChestContainer(player, inventory);
+                    return new ChestContainer(player, destructItems, inventory);
+                case FakeContainerType.TrappedChest:
+                    return new TrappedChestContainer(player, destructItems, inventory);
                 case FakeContainerType.DoubleChest:
-                    return new DoubleChestContainer(player, inventory);
+                    return new DoubleChestContainer(player, destructItems, inventory);
+                case FakeContainerType.DoubleTrappedChest:
+                    return new DoubleTrappedChestContainer(player, destructItems, inventory);
+                case FakeContainerType.Hopper:
+                    return new HopperContainer(player, destructItems, inventory);
+                case FakeContainerType.Dropper:
+                    return new DropperContainer(player, destructItems, inventory);
+                case FakeContainerType.Dispenser:
+                    return new DispenserContainer(player, destructItems, inventory);
             }
         } else throw new Error("Player already has a fake container assigned. Close it before creating a new one.");
     }
